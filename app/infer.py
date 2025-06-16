@@ -35,10 +35,6 @@ def preprocess(input_data, config, dtype=np.float32):
     else:
         norm_img_data = img_data
 
-    # resize
-    target_size = config["input_size"]
-    norm_img_data = resize_with_pil_to_np(norm_img_data, target_size)
-
     norm_img_data = np.expand_dims(np.transpose(norm_img_data, (2, 0, 1)), axis=0)
 
     return norm_img_data.astype(dtype)
@@ -100,12 +96,6 @@ def check_model_type(model_dir: pathlib.Path):
         logging.exception(e)
 
 
-def resize_with_pil_to_np(image_array, new_size):
-    image = PIL.Image.fromarray(image_array)
-    resized_image = image.resize(new_size, resample=PIL.Image.Resampling.LANCZOS)
-    return np.asarray(resized_image)
-
-
 def resize_keep_ratio(input: PIL.Image.Image, size=(800, 800)):
     """Resize input to maximum size"""
     mp_w = round(size[0] / input.width, 1)
@@ -117,8 +107,7 @@ def resize_keep_ratio(input: PIL.Image.Image, size=(800, 800)):
     return input
 
 
-def get_onnx_session(model_path: str):
-    model_dir = pathlib.Path(model_path)
+def get_onnx_session(model_dir: pathlib.Path):
     if model_dir.joinpath("model.onnx").exists():
         if model_dir.joinpath("preprocessor_config.json").exists():
             mode = check_model_type(model_dir)
@@ -144,6 +133,9 @@ def predict_image_onnx(session, mode, config, input: PIL.Image.Image, threshold:
     # get the name of the first input of the model
     input_name = session.get_inputs()[0].name
     x, y = input.size
+
+    # resize imput to model's input_size
+    input = input.resize(config["input_size"], resample=PIL.Image.Resampling.LANCZOS)
 
     # check for fp16
     input_type = np.float32  # tensor(float)

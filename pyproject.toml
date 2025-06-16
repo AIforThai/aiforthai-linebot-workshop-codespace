@@ -11,7 +11,10 @@ dependencies = [
     "line-bot-sdk~=3.17.0",
     "pydantic-settings~=2.9.1",
     "uvicorn[standard]~=0.34.2",
-]
+    "pillow",
+    "numpy",
+    "onnxruntime",
+    ]
 
 [tool.ruff]
 line-length = 100

@@ -1,4 +1,4 @@
-import os
+import pathlib
 import tempfile
 
 import PIL
@@ -9,6 +9,7 @@ from linebot.exceptions import InvalidSignatureError
 from linebot.models import (
     ImageMessage,
     MessageEvent,
+    TextMessage,
     TextSendMessage,
 )
 
@@ -24,8 +25,12 @@ setting.set_api_key(cfg.AIFORTHAI_APIKEY)  # AIFORTHAI_APIKEY
 line_bot_api = LineBotApi(cfg.LINE_CHANNEL_ACCESS_TOKEN)  # CHANNEL_ACCESS_TOKEN
 handler = WebhookHandler(cfg.LINE_CHANNEL_SECRET)  # CHANNEL_SECRET
 
-# LOAD MODEL ONCE
-session, mode, config = infer.get_onnx_session("model-onnx")
+model_dir = pathlib.Path("model-onnx")
+if model_dir.exists():
+    # LOAD MODEL ONCE
+    session, mode, config = infer.get_onnx_session(model_dir)
+else:
+    raise RuntimeError("Model Directory not exists")
 
 
 @router.post("")
@@ -53,9 +58,11 @@ async def nomadml_demo(request: Request):
 def handle_image_message(event):
     message_id = event.message.id
     image_content = line_bot_api.get_message_content(message_id)
-    result = "ERROR"
+
+    result = None
+
     with tempfile.TemporaryDirectory() as tmp_dir:
-        img_path = os.path.join(tmp_dir, "image.jpg")
+        img_path = pathlib.Path(tmp_dir).joinpath("image.jpg")
         # Save user's image in tempdirectory and process it
         with open(img_path, "wb") as f:
             for chunk in image_content.iter_content():
@@ -65,10 +72,20 @@ def handle_image_message(event):
         with PIL.Image.open(img_path) as _img:
             _img = infer.resize_keep_ratio(_img)
             res = infer.predict_image_onnx(session, mode, config, _img, 0.8)
-        result = res
+            result = res
+
+    if result is None:
+        result = {"ERROR": "Cannot process data"}
+    # return text response
+    send_message(event, str(result))
+
+
+@handler.add(MessageEvent, message=TextMessage)
+def handle_text_message(event):
+    text = "Welcome to NomadML LINE bot demo, This bot accept only image"
 
     # return text response
-    send_message(event, result)
+    send_message(event, text)
 
 
 def echo(event):
