@@ -128,7 +128,13 @@ async def process_command(event, matched_command, content, user_input):
     elif matched_command == "#longan_tokenizer":
         send_message(event, str(logan_tokenizer.tokenize(content)))
     elif matched_command == "#g2p":
-        send_message(event, str(g2p.analyze(content)['output']['result']))
+        result = callG2P(content)
+        if "phoneme" in result:
+            # print(result['phoneme'])
+            send_message(event, str(result["phoneme"]))
+        else:
+            # print("Error or unexpected response:", result)
+            send_message(event, str(result))
     elif matched_command == "#textsum":
         send_message(event, callTextSummarization(content))
     elif matched_command == "#soundex":
@@ -218,6 +224,18 @@ def download_and_play(wav_url):
     if resp.status_code == 200:
         with open(file_name, 'wb') as f:
             f.write(resp.content)
+
+def callG2P(content):
+    url = "https://api.aiforthai.in.th/g2p"
+    headers = {"Apikey": cfg.AIFORTHAI_APIKEY, "Content-Type": "application/json"}
+    params = json.dumps({"text": content})
+    response = requests.post(url, data=params, headers=headers)
+
+    if response.status_code == 200:
+        return response.json()
+    else:
+        return {"error": response.status_code, "message": response.text}
+
 
 def callTextSummarization(content):
     url = 'https://api.aiforthai.in.th/textsummarize'
