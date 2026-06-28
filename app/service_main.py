@@ -11,6 +11,7 @@ from aift.multimodal import audioqa, textqa, vqa
 from fastapi import APIRouter, Request
 from linebot import LineBotApi
 from linebot.models import AudioMessage, ImageMessage, MessageEvent, TextMessage, TextSendMessage, ImageSendMessage
+# from app import audioqa, textqa, vqa
 from app.configs import Configs
 
 router = APIRouter(tags=["Main"], prefix="/message")
