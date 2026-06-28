@@ -1,5 +1,6 @@
 from fastapi import APIRouter, Request
 from fastapi.responses import JSONResponse
+from typing import Any
 
 from linebot import WebhookParser
 from linebot.exceptions import InvalidSignatureError
@@ -50,8 +51,14 @@ async def webhook_handler(request: Request):
     signature = request.headers.get("X-Line-Signature")
     body = await request.body()
 
+    if not signature:
+        return JSONResponse(content={"error": "Missing signature"}, status_code=400)
+
     try:
-        events = parser.parse(body.decode("utf-8"), signature)
+        parsed: Any = parser.parse(body.decode("utf-8"), signature)
+        events = getattr(parsed, "events", parsed)
+        if events is None:
+            events = []
     except InvalidSignatureError as e:
         print("❌ Invalid signature:", e)
         return JSONResponse(content={"error": "Invalid signature"}, status_code=400)
@@ -76,14 +83,18 @@ async def webhook_handler(request: Request):
                         await service_main.handle_event(event)
                 elif isinstance(event.message, FileMessage): #Input file
                     try:
-                        text_content = extract_text_from_file_message(event.message, event.message.id)
+                        message_id = event.message.id
+                        if not isinstance(message_id, str):
+                            raise ValueError("Missing file message id")
+
+                        text_content = extract_text_from_file_message(event.message, message_id)
                         
                         # ✅ เรียกฟังก์ชันใหม่ที่เราสร้างไว้
                         await service_main.handle_text_from_file(event, text_content)
 
                     except Exception as e:
                         print("⚠️ Failed to process file:", e)
-                        await service_main.send_message(event, "❌ ไม่สามารถประมวลผลไฟล์นี้ได้")
+                        service_main.send_message(event, "❌ ไม่สามารถประมวลผลไฟล์นี้ได้")
 
         except Exception as e:
             print("⚠️ Error handling event:", e)

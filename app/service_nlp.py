@@ -167,6 +167,10 @@ async def process_command(event, matched_command, content, user_input):
         # send_message(event, str(sentiment.analyze(content, engine='thaimoji')))
         result = sentiment.analyze(content, engine='thaimoji')  # result = dict: {'0': '0.25', '9': '0.31', ...}
 
+        if not isinstance(result, dict):
+            send_message(event, str(result))
+            return
+
         # แปลงเป็นลิสต์ของ (class_id: int, score: float)
         class_scores = [(int(k), float(v)) for k, v in result.items()]
         
@@ -194,12 +198,14 @@ async def process_command(event, matched_command, content, user_input):
     elif matched_command == "#tts":
         response = callVaja9(content, 0)
         if response.json().get('msg') == 'success':
+            print(response.json())
             download_and_play(response.json()['wav_url'])
             send_audio(event, cfg.WAV_URL + cfg.DIR_FILE + cfg.WAV_FILE, response.json()['durations'])
         else:
             send_message(event, "TTS failed")
 
 def send_audio(event, audio_url, duration_sec):
+    # print(f"Sending audio: {audio_url} with duration {duration_sec} seconds")
     audio_msg = AudioSendMessage(original_content_url=audio_url, duration=int(duration_sec * 1000))
     line_bot_api.reply_message(event.reply_token, audio_msg)
 
